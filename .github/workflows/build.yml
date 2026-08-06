@@ -39,6 +39,13 @@ jobs:
       - name: 安装前端依赖
         run: npm install
 
+      - name: 安装 Python 并生成图标 PNG
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 生成图标 PNG（CI 内重绘，仓库不含二进制）
+        run: pip install pillow && python make_icon.py
+
       - name: 生成应用图标
         run: npx @tauri-apps/cli@latest icon frontend/icon.png
 
