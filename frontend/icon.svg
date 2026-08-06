@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="打工人小账本">
+  <rect width="512" height="512" rx="112" fill="#3FBF9A"/>
+  <!-- 身体 -->
+  <ellipse cx="262" cy="296" rx="156" ry="124" fill="#FFFFFF"/>
+  <!-- 鼻子 -->
+  <ellipse cx="138" cy="308" rx="50" ry="44" fill="#FFFFFF"/>
+  <circle cx="120" cy="302" r="10" fill="#3FBF9A"/>
+  <circle cx="156" cy="302" r="10" fill="#3FBF9A"/>
+  <!-- 耳朵 -->
+  <path d="M296 182 q44 -34 66 2 q-10 40 -54 34 z" fill="#FFFFFF"/>
+  <!-- 投币口 -->
+  <rect x="232" y="176" width="64" height="15" rx="7.5" fill="#FF9EB5"/>
+  <!-- 腿 -->
+  <rect x="198" y="404" width="36" height="46" rx="17" fill="#FFFFFF"/>
+  <rect x="296" y="404" width="36" height="46" rx="17" fill="#FFFFFF"/>
+  <!-- 尾巴 -->
+  <path d="M414 290 q34 6 20 40 q-17 28 -46 13" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round"/>
+  <!-- 眼睛 -->
+  <circle cx="146" cy="276" r="11" fill="#39463F" opacity=".85"/>
+</svg>

@@ -1,0 +1,70 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::fs;
+use std::io::Write;
+use tauri::Manager;
+
+/// 过滤文件名中的非法字符，防止路径穿越
+fn sanitize(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect()
+}
+
+/// 读取账本 JSON（应用数据目录下 ledger.json）。无文件时返回 "null"。
+#[tauri::command]
+fn ledger_load(app: tauri::AppHandle) -> String {
+    match app.path().app_data_dir() {
+        Ok(dir) => {
+            let path = dir.join("ledger.json");
+            fs::read_to_string(&path).unwrap_or_else(|_| "null".to_string())
+        }
+        Err(_) => "null".to_string(),
+    }
+}
+
+/// 写入账本 JSON（应用数据目录下 ledger.json）。
+#[tauri::command]
+fn ledger_save(app: tauri::AppHandle, json: String) -> bool {
+    match app.path().app_data_dir() {
+        Ok(dir) => {
+            let _ = fs::create_dir_all(&dir);
+            let path = dir.join("ledger.json");
+            fs::File::create(&path)
+                .and_then(|mut f| f.write_all(json.as_bytes()))
+                .is_ok()
+        }
+        Err(_) => false,
+    }
+}
+
+/// 导出文件（应用数据目录下 exports/<name>），返回完整路径供提示用户。
+#[tauri::command]
+fn ledger_export(app: tauri::AppHandle, name: String, content: String) -> String {
+    match app.path().app_data_dir() {
+        Ok(dir) => {
+            let exp = dir.join("exports");
+            let _ = fs::create_dir_all(&exp);
+            let path = exp.join(sanitize(&name));
+            match fs::File::create(&path).and_then(|mut f| f.write_all(content.as_bytes())) {
+                Ok(_) => path.to_string_lossy().to_string(),
+                Err(_) => "导出失败".to_string(),
+            }
+        }
+        Err(_) => "导出失败".to_string(),
+    }
+}
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            ledger_load,
+            ledger_save,
+            ledger_export
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
