@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "打工人小账本",
+  "productName": "WorkerLedger",
   "version": "1.0.0",
   "identifier": "com.worker.ledger",
   "build": {
