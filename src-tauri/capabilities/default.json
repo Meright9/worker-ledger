@@ -6,8 +6,8 @@
   "permissions": [
     "core:default",
     "core:event:default",
-    "allow-ledger_load",
-    "allow-ledger_save",
-    "allow-ledger_export"
+    "allow-ledger-load",
+    "allow-ledger-save",
+    "allow-ledger-export"
   ]
 }
