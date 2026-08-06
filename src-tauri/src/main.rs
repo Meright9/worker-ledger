@@ -15,7 +15,7 @@ fn sanitize(name: &str) -> String {
 }
 
 /// 读取账本 JSON（应用数据目录下 ledger.json）。无文件时返回 "null"。
-#[tauri::command]
+#[tauri::command(name = "ledger-load")]
 fn ledger_load(app: tauri::AppHandle) -> String {
     match app.path().app_data_dir() {
         Ok(dir) => {
@@ -27,7 +27,7 @@ fn ledger_load(app: tauri::AppHandle) -> String {
 }
 
 /// 写入账本 JSON（应用数据目录下 ledger.json）。
-#[tauri::command]
+#[tauri::command(name = "ledger-save")]
 fn ledger_save(app: tauri::AppHandle, json: String) -> bool {
     match app.path().app_data_dir() {
         Ok(dir) => {
@@ -42,7 +42,7 @@ fn ledger_save(app: tauri::AppHandle, json: String) -> bool {
 }
 
 /// 导出文件（应用数据目录下 exports/<name>），返回完整路径供提示用户。
-#[tauri::command]
+#[tauri::command(name = "ledger-export")]
 fn ledger_export(app: tauri::AppHandle, name: String, content: String) -> String {
     match app.path().app_data_dir() {
         Ok(dir) => {

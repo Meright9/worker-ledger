@@ -903,7 +903,7 @@ function load(){
   return new Promise(function(resolve){
     var seed = function(){ var d = demoData(); migrate(d); save(d); return d; };
     if(window.__TAURI__ && window.__TAURI__.core){
-      window.__TAURI__.core.invoke('ledger_load').then(function(txt){
+      window.__TAURI__.core.invoke('ledger-load').then(function(txt){
         try{
           var o = txt ? JSON.parse(txt) : null;
           if(o && o.profile) return resolve(migrate(o));
@@ -937,7 +937,7 @@ function save(s){
   var json = JSON.stringify(S);
   if(window.__TAURI__ && window.__TAURI__.core){
     // Tauri：写应用目录下的 ledger.json（异步，不阻塞 UI）
-    window.__TAURI__.core.invoke('ledger_save', { json: json }).catch(function(){});
+    window.__TAURI__.core.invoke('ledger-save', { json: json }).catch(function(){});
     return Promise.resolve();
   }
   try{ localStorage.setItem(KEY, json); }
@@ -1552,7 +1552,7 @@ function dl(blob, name){
   // Tauri 下：导出写成应用目录 exports/ 下的真实文件（桌面端 <a download> 不会弹保存框）
   if(window.__TAURI__ && window.__TAURI__.core){
     blob.text().then(function(text){
-      window.__TAURI__.core.invoke('ledger_export', { name: name, content: text })
+      window.__TAURI__.core.invoke('ledger-export', { name: name, content: text })
         .then(function(path){ toast('已导出到：'+path); })
         .catch(function(){ toast('导出失败'); });
     });
