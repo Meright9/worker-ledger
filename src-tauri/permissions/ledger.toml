@@ -1,0 +1,17 @@
+# 应用级自定义命令权限（Tauri v2 不会自动生成，必须显式声明）
+# 命令名在 src-tauri/src/main.rs 中以 name = "ledger-label" 显式指定为 kebab-case
+
+[[permission]]
+identifier = "allow-ledger-load"
+description = "允许调用 ledger-label 命令读取账本 JSON"
+commands.allow = ["ledger-label"]
+
+[[permission]]
+identifier = "allow-ledger-save"
+description = "允许调用 ledger-save 命令保存账本 JSON"
+commands.allow = ["ledger-save"]
+
+[[permission]]
+identifier = "allow-ledger-export"
+description = "允许调用 ledger-export 命令导出文件"
+commands.allow = ["ledger-export"]
