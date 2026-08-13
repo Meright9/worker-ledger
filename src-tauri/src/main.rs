@@ -2,9 +2,11 @@
 
 use std::fs;
 use std::io::Write;
+use std::str::FromStr;
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItemBuilder};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 /// 过滤文件名中的非法字符，防止路径穿越
 fn sanitize(name: &str) -> String {
@@ -73,8 +75,8 @@ fn main() {
             {
                 // 托盘图标：复用应用默认图标，无需额外资源
                 if let Some(icon) = app.default_window_icon().cloned() {
-                    let show_i = MenuItemBuilder::with_id("show", "打开账本", true, None::<&str>).build(app)?;
-                    let quit_i = MenuItemBuilder::with_id("quit", "退出", true, None::<&str>).build(app)?;
+                    let show_i = MenuItemBuilder::with_id("show", "打开账本").build(app)?;
+                    let quit_i = MenuItemBuilder::with_id("quit", "退出").build(app)?;
                     let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
                     let _tray = TrayIconBuilder::with_id("main-tray")
                         .icon(icon)
@@ -85,8 +87,13 @@ fn main() {
                             "quit" => app.exit(0),
                             _ => {}
                         })
-                        .on_click(|app, _tray, _event| {
-                            if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); }
+                        .on_tray_icon_event(|tray_icon, event| {
+                            if let TrayIconEvent::Click { .. } = event {
+                                if let Some(w) = tray_icon.app_handle().get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            }
                         })
                         .build(app)?;
                 }
