@@ -75,6 +75,39 @@ const wait = (dom, ms) => new Promise(r => setTimeout(() => r(), ms));
   // 6) voice gating on desktop (Tauri) — in browser mode startVoice should still work path; just ensure fn exists
   ok(typeof w.startVoice === 'function', 'startVoice defined');
 
+  // 7) snapWage: one entry per month, no duplicate
+  w.S.wageHistory = [];
+  const ymNow = w.ym(new Date());
+  w.snapWage();
+  ok(w.S.wageHistory.length === 1 && w.S.wageHistory[0].ym === ymNow, 'snapWage pushes one entry for current month');
+  w.snapWage();
+  ok(w.S.wageHistory.length === 1, 'snapWage does not duplicate current month');
+
+  // 8) drawWageTrend: SVG with >=2 points + driver sign
+  w.S.wageHistory = [
+    { ym:'2026-01', real:50, nominal:80, hoursMonth:160, realIncome:8000, cost:0, ot:0, commute:1, net:8000, months:12 },
+    { ym:'2026-02', real:55, nominal:80, hoursMonth:160, realIncome:8800, cost:0, ot:0, commute:1, net:8800, months:12 }
+  ];
+  w.drawWageTrend();
+  const wt = w.document.getElementById('wageTrend');
+  ok(wt.querySelectorAll('circle').length >= 2, 'drawWageTrend renders >=2 points (' + wt.querySelectorAll('circle').length + ')');
+  ok(/↗ \+10%/.test(w.document.getElementById('wageDriver').innerHTML || ''), 'driver shows +10% up move');
+  ok(/收益端/.test(w.document.getElementById('wageDriver').innerHTML || ''), 'driver breaks down into 收益端');
+  ok(/白干/.test(w.document.getElementById('wageSpend').innerHTML || ''), 'wageSpend links spend to hours');
+
+  // 9) budget drill-down: click category expands its transactions
+  w.S.budgets = { total: 0, cats: { '吃饭': 1500 } };
+  const cm = w.ym(new Date());
+  w.S.records.push({ id:'bd1', date: cm+'-10', type:'expense', amount: 42, cat:'吃饭', note:'测试餐费', bucket:'必要', account:'' });
+  w.drawBudget();
+  const bud2 = w.document.getElementById('budList');
+  const catEl = bud2.querySelector('[data-cat="吃饭"]');
+  ok(!!catEl, 'budget row has data-cat');
+  ok(/本月还可花/.test(bud2.innerHTML), 'per-category 本月还可花 line present');
+  catEl.click();
+  const bud3 = w.document.getElementById('budList');
+  ok(/测试餐费/.test(bud3.innerHTML), 'clicking category expands its transactions');
+
   console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST CRASH', e); process.exit(2); });

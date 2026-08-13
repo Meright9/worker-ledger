@@ -332,6 +332,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
           <div class="kpi"><div class="l">名义时薪</div><div class="v" id="kNom">-</div><div class="s">月薪 ÷ 标准工时</div></div>
           <div class="kpi"><div class="l">缩水幅度</div><div class="v red" id="kGap">-</div><div class="s">真实 vs 名义</div></div>
         </div>
+        <div id="wageTrendHome" class="sub" style="margin-top:6px"></div>
         <div class="row" style="margin-top:13px">
           <button class="btn sm" data-go="wage">查看完整公式</button>
           <button class="btn sm p" data-go="add">记一笔</button>
@@ -530,6 +531,13 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
           <div class="kpi"><div class="l">真实日薪</div><div class="v" id="wDay">-</div></div>
           <div class="kpi"><div class="l">每分钟</div><div class="v pink" id="wMin">-</div></div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="ct"><span data-ic="gauge"></span>真实时薪复盘 <small>最近 12 个月 · 绿=真实 / 紫虚线=名义</small></div>
+        <div id="wageTrend"></div>
+        <div id="wageDriver" class="sub" style="margin-top:8px"></div>
+        <div id="wageSpend" class="banner info" style="margin-top:8px"></div>
       </div>
     </section>
 
@@ -891,6 +899,7 @@ function demoData(){
       {id:uid(), name:'基金账户', type:'invest', balance:15000, demo:true}
     ],
     budgets:{ total:6000, cats:{ '吃饭':1500, '咖啡':300, '购物':800, '娱乐':500, '交通':400 } },
+    wageHistory:[],
     recurring:[
       {id:uid(), name:'工资到账', amount:14500, type:'income', cat:'工资', bucket:'储蓄', account:'工资卡', day:10, demo:true},
       {id:uid(), name:'房租自动扣', amount:3200, type:'expense', cat:'居住', bucket:'必要', account:'工资卡', day:1, demo:true}
@@ -934,6 +943,7 @@ function migrate(o){
   o.fixed = Array.isArray(o.fixed) ? o.fixed : [];
   o.records = Array.isArray(o.records) ? o.records : [];
   o.savings = Array.isArray(o.savings) ? o.savings : [];
+  o.wageHistory = Array.isArray(o.wageHistory) ? o.wageHistory : [];
   if(o.payday===undefined || o.payday<1 || o.payday>28) o.payday = 10;
   o.records.forEach(function(r){ if(!r.bucket) r.bucket = r.type==='income' ? '储蓄' : '必要'; if(r.account===undefined) r.account=''; if(r.sub===undefined) r.sub=''; });
   o.fixed.forEach(function(f){ if(!f.frequency) f.frequency='monthly'; if(f.bucket===undefined) f.bucket='必要'; if(!Array.isArray(f.paid)) f.paid=[]; });
@@ -1236,7 +1246,7 @@ function renderHome(){
     : '';
 
   $('streakBox').innerHTML = '<span class="streak">'+svgIcon('check')+'连续记账 '+streakDays()+' 天</span>';
-  drawDash(); drawBuckets(); drawBudget(); drawLatte(); drawReview();
+  drawDash(); drawBuckets(); drawBudget(); drawLatte(); drawReview(); drawWageHome();
 }
 function drawDash(){
   var nw = netWorth();
@@ -1275,8 +1285,9 @@ function drawBuckets(){
   if(!msg.length) msg.push('比例健康，继续保持');
   $('bkHint').textContent = msg.join('；');
 }
+var expandedCat = null;
 function drawBudget(){
-  var b = S.budgets, bs = budgetStat();
+  var b = S.budgets, bs = budgetStat(), m = ym(new Date());
   $('bdTotal').value = b.total || '';
   var html='';
   if(b.total>0){
@@ -1286,10 +1297,19 @@ function drawBudget(){
     html += '<div style="font-size:13px;color:var(--sub);margin:2px 0 8px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+'</div>';
   }
   Object.keys(b.cats||{}).forEach(function(k){
-    var lim=b.cats[k], cur=bs.byCat[k]||0, rt=lim>0?cur/lim:0;
-    html += '<div class="budRow'+(rt>1?' over':'')+'"><span class="nm">'+esc(k)+'</span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%"></i></div><span class="vl">'+money(cur)+' / '+money(lim)+(rt>1?' ⚠':'')+'</span></div>';
+    var lim=b.cats[k], cur=bs.byCat[k]||0, rt=lim>0?cur/lim:0, left=lim-cur;
+    html += '<div class="budRow'+(rt>1?' over':'')+'" data-cat="'+esc(k)+'" style="cursor:pointer"><span class="nm">'+esc(k)+' <small style="color:var(--sub)">›</small></span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%></i></div><span class="vl">'+money(cur)+' / '+money(lim)+(rt>1?' 超':'')+'</span></div>';
+    html += '<div style="font-size:12px;color:var(--sub);margin:1px 0 6px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+'</div>';
+    if(expandedCat===k){
+      var list = monthRecords(m).filter(function(r){ return r.type==='expense' && r.cat===k; }).sort(function(a,b){ return b.amount-a.amount; });
+      html += '<div style="background:#FBF7EF;border-radius:10px;padding:8px 10px;margin:2px 0 8px">';
+      if(!list.length) html += '<div class="empty">本月该类暂无支出</div>';
+      else html += list.slice(0,20).map(function(r){ return '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px dashed #EDE4D5"><span>'+esc(r.date.slice(5))+' '+(esc(r.note||''))+'</span><span style="font-weight:700">'+money(r.amount)+'</span></div>'; }).join('');
+      html += '<div class="sub" style="margin-top:4px">共 '+list.length+' 笔 · 合计 '+money(cur)+'</div></div>';
+    }
   });
   $('budList').innerHTML = html || '<div class="empty">还没设预算，点下方设置</div>';
+  $('budList').querySelectorAll('[data-cat]').forEach(function(el){ el.onclick = function(){ expandedCat = (expandedCat===el.dataset.cat)?null:el.dataset.cat; drawBudget(); }; });
 }
 function drawLatte(){
   var arr = latteFactor();
@@ -1403,8 +1423,9 @@ function readWage(){
   p.net=num($('wNet').value); p.months=num($('wMonths').value,12); p.days=num($('wDays').value,21.75);
   p.onsite=num($('wOnsite').value); p.commute=num($('wCommute').value); p.ot=num($('wOt').value);
   p.cost.traffic=num($('cTraffic').value); p.cost.meal=num($('cMeal').value);
-  p.cost.dress=num($('cDress').value); p.cost.other=num($('cOther').value);
+  p.cost.dress=num($('cDress').value);   p.cost.other=num($('cOther').value);
   save(); render();
+  snapWage();
 }
 function line(k,v,cls){ return '<div class="fl'+(cls?' '+cls:'')+'"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
 function renderWage(){
@@ -1433,6 +1454,56 @@ function renderWage(){
   $('wReal').textContent = money2(c.real);
   $('wDay').textContent = money(c.realDay);
   $('wMin').textContent = money2(c.real/60);
+  drawWageTrend();
+}
+
+/* ---------- 渲染：真实时薪复盘 ---------- */
+function snapWage(){
+  var m = ym(new Date());
+  S.wageHistory = Array.isArray(S.wageHistory) ? S.wageHistory : [];
+  if(S.wageHistory.some(function(x){ return x.ym===m; })) return;
+  var c = calc();
+  S.wageHistory.push({ ym:m, real:c.real, nominal:c.nominal, hoursMonth:c.hoursMonth, realIncome:c.realIncome, cost:c.cost, ot:c.otMonth, commute:S.profile.commute, net:S.profile.net, months:S.profile.months });
+}
+function drawWageTrend(){
+  var box = $('wageTrend'); if(!box) return;
+  var h = (S.wageHistory = Array.isArray(S.wageHistory)?S.wageHistory:[]).slice().sort(function(a,b){ return a.ym<b.ym?-1:1; }).slice(-12);
+  if(h.length<2){ box.innerHTML = '<div class="empty">至少记录两个月后，这里会画出你的时薪走势</div>'; if($('wageDriver'))$('wageDriver').textContent=''; if($('wageSpend'))$('wageSpend').textContent=''; return; }
+  var W=640,H=250,PL=54,PR=16,PT=18,PB=34, iw=W-PL-PR, ih=H-PT-PB;
+  var reals=h.map(function(d){return d.real;}), noms=h.map(function(d){return d.nominal;});
+  var all=reals.concat(noms), max=Math.max.apply(null,all), min=Math.min.apply(null,all);
+  var span=max-min; if(span<=0) span=max||1; var top=max+span*0.18, bot=Math.max(0,min-span*0.25); if(top===bot) top=bot+1;
+  var X=function(i){ return PL+(h.length===1?iw/2:iw*i/(h.length-1)); };
+  var Y=function(v){ return PT+ih*(1-(v-bot)/(top-bot)); };
+  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="真实时薪走势">';
+  for(var g=0; g<=4; g++){ var gy=PT+ih*g/4, gv=top-(top-bot)*g/4;
+    s+='<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-PR)+'" y2="'+gy.toFixed(1)+'" stroke="#EDE4D5" stroke-width="1" stroke-dasharray="4 5"/>';
+    s+='<text x="'+(PL-8)+'" y="'+(gy+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="#8B9A93">'+Math.round(gv)+'</text>'; }
+  function pathOf(vals){ var d=''; vals.forEach(function(v,i){ d+=(i?' L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1); }); return d; }
+  s+='<path d="'+pathOf(noms)+'" fill="none" stroke="#C9B7E0" stroke-width="2.4" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>';
+  s+='<path d="'+pathOf(reals)+'" fill="none" stroke="#3FBF9A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>';
+  h.forEach(function(d,i){ var x=X(i),y=Y(d.real), last=i===h.length-1;
+    s+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+(last?6:4.5)+'" fill="#fff" stroke="'+(last?'#FF9EB5':'#3FBF9A')+'" stroke-width="3"/>';
+    if(last||i===0||h.length<=7) s+='<text x="'+x.toFixed(1)+'" y="'+(y-13).toFixed(1)+'" text-anchor="middle" font-size="11.5" font-weight="700" fill="'+(last?'#E0708C':'#39463F')+'">'+Math.round(d.real)+'</text>';
+    s+='<text x="'+x.toFixed(1)+'" y="'+(H-11)+'" text-anchor="middle" font-size="11" fill="#8B9A93">'+d.ym.slice(5)+'月</text>'; });
+  s+='</svg>';
+  box.innerHTML=s;
+  var a=h[h.length-2], b=h[h.length-1];
+  var dReal=b.real-a.real, dInc=b.realIncome-a.realIncome, dH=b.hoursMonth-a.hoursMonth;
+  var drvInc = a.hoursMonth>0 ? dInc/a.hoursMonth : 0;
+  var drvTime = (a.hoursMonth>0&&b.hoursMonth>0) ? -a.realIncome*dH/(a.hoursMonth*b.hoursMonth) : 0;
+  var pct = a.real>0 ? Math.round(dReal/a.real*100) : 0;
+  if($('wageDriver')) $('wageDriver').innerHTML = '近月真实时薪 <b style="color:'+(dReal>=0?'var(--green)':'var(--red)')+'">'+(dReal>=0?'↗ +':'↘ ')+Math.abs(pct)+'%</b>（'+Math.round(a.real)+'→'+Math.round(b.real)+'/h）。拆分（近似）：收益端 '+(drvInc>=0?'+':'')+Math.round(drvInc)+'/h，时间端 '+(drvTime>=0?'+':'')+Math.round(drvTime)+'/h。';
+  var sp = monthSpend(), lw = toWork(sp), lat = latteFactor();
+  if($('wageSpend')) $('wageSpend').innerHTML = '本月已花 <b>'+money(sp)+'</b>，约等于给公司白干 <b style="color:var(--red)">'+lw+'</b>。' + (lat.length? ' 最大黑洞：'+esc(lat[0].cat)+'（近30天 '+lat[0].n+' 笔 · '+money(lat[0].amt)+'）' : ' 暂无高频小额黑洞，稳。');
+}
+function drawWageHome(){
+  var el=$('wageTrendHome'); if(!el) return;
+  var h=(S.wageHistory=Array.isArray(S.wageHistory)?S.wageHistory:[]).slice().sort(function(a,b){return a.ym<b.ym?-1:1;});
+  if(h.length<2){ el.innerHTML=''; return; }
+  var a=h[Math.max(0,h.length-3)], b=h[h.length-1];
+  var pct=a.real>0?Math.round((b.real-a.real)/a.real*100):0;
+  el.innerHTML='近 3 月真实时薪 <b style="color:'+(b.real>=a.real?'var(--green)':'var(--red)')+'">'+(pct>=0?'+':'')+pct+'%</b> · '+Math.round(a.real)+'→'+Math.round(b.real)+'/h';
 }
 
 /* ---------- 渲染：自由基金 + SVG 曲线 ---------- */
@@ -2133,7 +2204,7 @@ function autoBackup(){
     window.__TAURI__.core.invoke('ledger-save', { json: JSON.stringify(S) }).catch(function(){});
   }catch(e){}
 }
-async function boot(){ S = await load(); autoBackup(); init(); }
+async function boot(){ S = await load(); autoBackup(); snapWage(); init(); }
 boot();
 </script>
 <script>
