@@ -3,6 +3,7 @@
 use std::fs;
 use std::io::Write;
 use std::str::FromStr;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItemBuilder};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
