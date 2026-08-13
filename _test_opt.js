@@ -108,6 +108,70 @@ const wait = (dom, ms) => new Promise(r => setTimeout(() => r(), ms));
   const bud3 = w.document.getElementById('budList');
   ok(/测试餐费/.test(bud3.innerHTML), 'clicking category expands its transactions');
 
+  // 10) monthStat folds yearly/quarterly fixed costs to monthly (1/12, 1/3)
+  w.S.fixed = [
+    { name:'年付保险', amount:2400, frequency:'yearly', paid:[] },
+    { name:'季付会员', amount:300, frequency:'quarterly', paid:[] },
+    { name:'月付房租', amount:500, frequency:'monthly', paid:[] }
+  ];
+  const ms = w.monthStat(w.ym(new Date()));
+  ok(Math.round(ms.fix) === 800, 'monthStat yearly/quarterly folded to monthly (got ' + ms.fix + ', want 800)');
+
+  // 11) genRecurring rolls a past-day rule to next month (aligns with nextRecurDate); no dup
+  const RealDate = w.Date;
+  const FIXED = new RealDate('2026-08-20T12:00:00'); // 20th: day<=19 counts as "passed"
+  class MockDate extends RealDate {
+    constructor(...a){ if(a.length === 0) return new RealDate(FIXED.getTime()); return new RealDate(...a); }
+    static now(){ return FIXED.getTime(); }
+  }
+  w.Date = MockDate;
+  w.S.records = [];
+  w.S.recurring = [{ id:'r1', name:'房租', day:15, type:'expense', amount:100, cat:'其他', bucket:'必要', account:'' }];
+  w.genRecurring();
+  const g1 = w.S.records.filter(r => r._rec === 'r1');
+  ok(g1.length === 1, 'genRecurring generates one record (got ' + g1.length + ')');
+  ok(g1[0].date.slice(0,7) === '2026-09', 'past-day rule rolls to next month (got ' + g1[0].date + ')');
+  w.genRecurring();
+  ok(w.S.records.filter(r => r._rec === 'r1').length === 1, 'no duplicate on re-run within same target month');
+  w.S.recurring.push({ id:'r2', name:'工资', day:25, type:'income', amount:9000, cat:'工资', bucket:'储蓄', account:'' });
+  w.genRecurring();
+  const g2 = w.S.records.filter(r => r._rec === 'r2');
+  ok(g2.length === 1 && g2[0].date.slice(0,7) === '2026-08', 'future-day rule stays in current month (got ' + (g2[0] && g2[0].date) + ')');
+  w.Date = RealDate;
+
+  // 12) bill import shows preview before commit; confirm commits
+  w.S.records = w.S.records.filter(r => r.note !== '午餐' && r.note !== '地铁');
+  const csv = '日期,收/支,金额,商品\n2026-08-01,支出,32.5,午餐\n2026-08-02,支出,18,地铁';
+  w.parseBillText(csv);
+  const bs = w.document.getElementById('billStat');
+  ok(/预览/.test(bs.innerHTML), 'bill import shows preview before commit');
+  ok(/确认导入/.test(bs.innerHTML), 'bill import shows confirm button');
+  ok(w.S.records.filter(r => r.note === '午餐').length === 0, 'bill import does NOT commit before confirm');
+  w.document.getElementById('btnBillConfirm').click();
+  ok(w.S.records.filter(r => r.note === '午餐').length === 1, 'bill import commits lunch row after confirm');
+  ok(w.S.records.filter(r => r.note === '地铁').length === 1, 'bill import commits metro row after confirm');
+
+  // 13) budget month-over-month comparison + daily-available
+  w.S.records = [];
+  const prevM = (function(){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return w.ym(d); })();
+  const curM = w.ym(new Date());
+  w.S.budgets = { total: 3000, cats: { '吃饭': 1000 } };
+  w.S.records.push({ id:'pm1', date: prevM+'-10', type:'expense', amount:500, cat:'吃饭', note:'上月餐', bucket:'必要', account:'' });
+  w.S.records.push({ id:'cm1', date: curM+'-10', type:'expense', amount:600, cat:'吃饭', note:'本月餐', bucket:'必要', account:'' });
+  w.drawBudget();
+  const bud4 = w.document.getElementById('budList').innerHTML;
+  ok(/日均可用/.test(bud4), 'budget shows 日均可用');
+  ok(/上月/.test(bud4), 'budget shows 上月 comparison');
+  ok(/\+20%/.test(bud4), 'budget MoM shows +20% for 吃饭 (prev 500 -> 600)');
+
+  // 14) repay banner triggers when a card due date is within 5 days
+  w.S.accounts = [
+    { id:'card1', name:'招行信用卡', type:'card', balance:-1500, credit:20000, billDay:5, dueDay:(function(){ return new Date().getDate()+2; })(), freeDays:50 }
+  ];
+  w.renderRepayBanner();
+  const rb = w.document.getElementById('repayBanner');
+  ok(rb && /还款日/.test(rb.innerHTML), 'repay banner shows when card due within 5 days');
+
   console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST CRASH', e); process.exit(2); });

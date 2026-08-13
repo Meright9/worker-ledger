@@ -1,6 +1,6 @@
 {
   "name": "worker-ledger",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "打工人小账本 - 离线个人财务工作台（Tauri 桌面版）",
   "scripts": {

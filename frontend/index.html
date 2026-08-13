@@ -324,6 +324,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
       <div id="backupTip"></div>
       <div id="todoBox"></div>
       <div id="payBanner"></div>
+      <div id="repayBanner"></div>
 
       <div class="card mint">
         <div class="ct"><span data-ic="clock"></span>你的真实时薪 <small id="wageSub"></small></div>
@@ -1009,7 +1010,7 @@ function monthRecords(m){
 function monthStat(m){
   var rs = monthRecords(m), inc=0, exp=0;
   rs.forEach(function(r){ if(r.type==='income') inc+=r.amount; else exp+=r.amount; });
-  var fix = S.fixed.reduce(function(a,b){ return a+b.amount; },0);
+  var fix = S.fixed.reduce(function(a,b){ return a+monthlyAmount(b); },0);
   var c = calc();
   return { flexOut:exp, extraIn:inc, fix:fix, out:exp+fix,
            in: c.monthNet + inc, net: c.monthNet + inc - exp - fix, count:rs.length };
@@ -1285,21 +1286,40 @@ function drawBuckets(){
   if(!msg.length) msg.push('比例健康，继续保持');
   $('bkHint').textContent = msg.join('；');
 }
+function daysLeft(){
+  var t = new Date();
+  return new Date(t.getFullYear(), t.getMonth()+1, 0).getDate() - t.getDate() + 1;
+}
+function prevMonthStat(){
+  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  var pm = ym(d);
+  var exp = monthRecords(pm).filter(function(r){ return r.type==='expense'; });
+  var byCat = {};
+  exp.forEach(function(r){ byCat[r.cat] = (byCat[r.cat]||0) + r.amount; });
+  return { m:pm, total:exp.reduce(function(a,b){ return a+b.amount; },0), byCat:byCat };
+}
 var expandedCat = null;
 function drawBudget(){
   var b = S.budgets, bs = budgetStat(), m = ym(new Date());
+  var prev = prevMonthStat(), dl = daysLeft();
   $('bdTotal').value = b.total || '';
   var html='';
+  function moMInfo(cur, prevCur){
+    if(prevCur>0){ var p=Math.round((cur-prevCur)/prevCur*100); return ' · 上月 '+money(prevCur)+(p>=0?' +':'')+p+'%'; }
+    return ' · 上月无';
+  }
   if(b.total>0){
     var rt = bs.total/b.total;
     var left = b.total - bs.total;
-    html += '<div class="budRow'+(rt>1?' over':'')+'"><span class="nm">总预算</span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%"></i></div><span class="vl">'+money(bs.total)+' / '+money(b.total)+(rt>1?' ⚠':'')+'</span></div>';
-    html += '<div style="font-size:13px;color:var(--sub);margin:2px 0 8px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+'</div>';
+    var dail = left>0 && dl>0 ? money(left/dl) : money(0);
+    html += '<div class="budRow'+(rt>1?' over':'')+'"><span class="nm">总预算</span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%></i></div><span class="vl">'+money(bs.total)+' / '+money(b.total)+(rt>1?' 超':'')+'</span></div>';
+    html += '<div style="font-size:13px;color:var(--sub);margin:2px 0 8px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b> · 日均可用 <b>'+dail+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+moMInfo(bs.total, prev.total)+'</div>';
   }
   Object.keys(b.cats||{}).forEach(function(k){
     var lim=b.cats[k], cur=bs.byCat[k]||0, rt=lim>0?cur/lim:0, left=lim-cur;
+    var dail = left>0 && dl>0 ? money(left/dl) : money(0);
     html += '<div class="budRow'+(rt>1?' over':'')+'" data-cat="'+esc(k)+'" style="cursor:pointer"><span class="nm">'+esc(k)+' <small style="color:var(--sub)">›</small></span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%></i></div><span class="vl">'+money(cur)+' / '+money(lim)+(rt>1?' 超':'')+'</span></div>';
-    html += '<div style="font-size:12px;color:var(--sub);margin:1px 0 6px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+'</div>';
+    html += '<div style="font-size:12px;color:var(--sub);margin:1px 0 6px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b> · 日均可用 <b>'+dail+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+moMInfo(cur, prev.byCat[k]||0)+'</div>';
     if(expandedCat===k){
       var list = monthRecords(m).filter(function(r){ return r.type==='expense' && r.cat===k; }).sort(function(a,b){ return b.amount-a.amount; });
       html += '<div style="background:#FBF7EF;border-radius:10px;padding:8px 10px;margin:2px 0 8px">';
@@ -1311,6 +1331,7 @@ function drawBudget(){
   $('budList').innerHTML = html || '<div class="empty">还没设预算，点下方设置</div>';
   $('budList').querySelectorAll('[data-cat]').forEach(function(el){ el.onclick = function(){ expandedCat = (expandedCat===el.dataset.cat)?null:el.dataset.cat; drawBudget(); }; });
 }
+
 function drawLatte(){
   var arr = latteFactor();
   if(!arr.length){ $('latteBox').innerHTML = '<div class="empty">近 30 天没有高频小额消费，棒</div>'; return; }
@@ -1743,13 +1764,14 @@ function nextRecurDate(r){
   return d;
 }
 function genRecurring(){
-  var m = ym(new Date());
   S.recurring.forEach(function(r){
     if(r.skip) return;
-    if(S.records.some(function(x){ return x._rec===r.id && x.date.slice(0,7)===m; })) return;
     var day = Math.max(1, Math.min(28, r.day||1));
     var d = new Date(); d.setDate(day);
-    if(d.getMonth() !== new Date().getMonth()) d.setDate(Math.min(day, new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate()));
+    if(d.getTime() < Date.now()) d.setMonth(d.getMonth()+1);
+    d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()));
+    var dm = ym(d);
+    if(S.records.some(function(x){ return x._rec===r.id && x.date.slice(0,7)===dm; })) return;
     S.records.push({ id:uid(), date:ymd(d), type:r.type, amount:Math.round(r.amount*100)/100,
       cat:r.cat||'其他', note:'周期自动 · '+r.name, bucket:r.bucket||(r.type==='income'?'储蓄':'必要'),
       account:r.account||'', _rec:r.id, demo:r.demo });
@@ -1938,6 +1960,7 @@ function acctGuess(method){
   for(var i=0;i<S.accounts.length;i++){ if(S.accounts[i].name&&method&&S.accounts[i].name.indexOf(method)>=0) return S.accounts[i].id; }
   return '';
 }
+var _billCands = null;
 function parseBillText(text){
   if(!text){ toast('读不了这个文件'); return; }
   var rows=parseCSV(text);
@@ -1952,7 +1975,7 @@ function parseBillText(text){
   var mi=findCol(header,['收/付款方式','支付方式','账户','付款方式']);
   if(ai<0){ toast('找不到金额列，无法导入'); return; }
   var needCats={'吃饭':'必要','交通':'必要','居住':'必要','医疗':'必要'};
-  var added=0;
+  var cands=[];
   for(var rr=hIdx+1;rr<rows.length;rr++){
     var row=rows[rr]; if(!row||row.length<=ai) continue;
     var amt=num(row[ai]); if(!(amt>0)) continue;
@@ -1963,11 +1986,28 @@ function parseBillText(text){
     var bucket=typ==='income'?'储蓄':(needCats[cat]||'想要');
     var rec={id:uid(), date:ds, type:typ, amount:Math.round(amt*100)/100, cat:cat, note:nm, bucket:bucket, account:acctGuess(mi>=0?(row[mi]||'').trim():''), sub:''};
     if(S.records.some(function(x){return x.date===rec.date&&Math.abs(x.amount-rec.amount)<0.5&&x.cat===rec.cat;})) continue;
-    S.records.push(rec); added++;
+    cands.push(rec);
   }
+  if(!cands.length){ $('billStat').textContent='没有可导入的新账单（都已存在或金额无效）。'; return; }
+  cands.sort(function(a,b){ return a.date<b.date?-1:1; });
+  _billCands = cands;
+  var incN=cands.filter(function(r){return r.type==='income';}).length, expN=cands.length-incN;
+  var html='<div style="font-size:13px;font-weight:700;margin:6px 0 4px">预览：将导入 <b>'+cands.length+'</b> 笔（收入 '+incN+' · 支出 '+expN+'，'+cands[0].date+' ~ '+cands[cands.length-1].date+'）</div>'
+    + '<div style="max-height:210px;overflow:auto;border:1.5px solid var(--line);border-radius:12px;margin:6px 0">'
+    + cands.slice(0,40).map(function(r){ return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;padding:5px 10px;border-bottom:1px dashed #EDE4D9"><span>'+r.date.slice(5)+' '+esc(r.cat)+' '+(esc(r.note||'').slice(0,10))+'</span><span style="font-weight:700;white-space:nowrap;color:'+(r.type==='income'?'var(--green)':'var(--red)')+'">'+money(r.amount)+'</span></div>'; }).join('')
+    + (cands.length>40?'<div class="hint" style="padding:6px 10px">其余 '+(cands.length-40)+' 笔省略</div>':'')
+    + '</div>'
+    + '<div class="row" style="margin-top:8px"><button class="btn p sm" id="btnBillConfirm">确认导入 '+cands.length+' 笔</button><button class="btn sm" id="btnBillCancel">取消</button></div>';
+  $('billStat').innerHTML=html;
+  $('btnBillConfirm').onclick=function(){ commitBill(cands); };
+  $('btnBillCancel').onclick=function(){ _billCands=null; $('billStat').textContent='已取消导入。'; };
+}
+function commitBill(cands){
+  cands.forEach(function(r){ S.records.push(r); });
+  _billCands=null;
   save();
-  $('billStat').textContent='已导入 '+added+' 笔（重复自动跳过）。去「10 秒记账」查看。';
-  toast('导入成功：'+added+' 笔'); render();
+  $('billStat').textContent='已导入 '+cands.length+' 笔（重复自动跳过）。去「10 秒记账」查看。';
+  toast('导入成功：'+cands.length+' 笔'); render();
 }
 function parseBill(file){
   var decode=function(buf){
@@ -2028,9 +2068,26 @@ function renderPayBanner(){
   box.innerHTML='<div class="banner tip"><span data-ic="piggy"></span><div><b>发薪日到了，先存后花！</b>工资到账先把约 '+money(suggest)+'（20%）转到一张「看不见」的储蓄账户，剩下的再花。这是最难但也最管用的存钱动作。</div></div>';
 }
 
+/* ---- 还款日临近提醒 ---- */
+function renderRepayBanner(){
+  var box=$('repayBanner'); if(!box) return;
+  var today0=new Date(); today0.setHours(0,0,0,0);
+  var due=[];
+  S.accounts.forEach(function(a){
+    if(a.type!=='card') return;
+    var d=nextDue(a), left=Math.round((d-today0)/86400000);
+    if(left>=0 && left<=5) due.push({name:a.name, d:d, left:left});
+  });
+  if(!due.length){ box.innerHTML=''; return; }
+  due.sort(function(x,y){ return x.left-y.left; });
+  var txt=due.map(function(x){ return '<b>'+esc(x.name)+'</b> 还款日 '+x.d.getMonth()+1+'月'+x.d.getDate()+'日，还剩 <b>'+x.left+'</b> 天'; }).join('；');
+  box.innerHTML='<div class="banner warn"><span data-ic="alert"></span><div>'+txt+'。别逾期影响征信，记得提前还款。</div></div>';
+  paintIcons(box);
+}
+
 /* ---------- 总渲染 ---------- */
 function render(){
-  if(current==='home'){ renderHome(); renderPayBanner(); }
+  if(current==='home'){ renderHome(); renderPayBanner(); renderRepayBanner(); }
   if(current==='add') renderAdd();
   if(current==='wage') renderWage();
   if(current==='fund') renderFund();
