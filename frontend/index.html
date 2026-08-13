@@ -315,6 +315,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
         <div class="row">
           <button class="btn sm" id="btnExport"></button>
           <button class="btn sm" id="btnImport"></button>
+          <button class="btn sm" id="btnMerge"></button>
           <button class="btn sm" id="btnCsv"></button>
         </div>
       </div>
@@ -469,6 +470,9 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
         <div class="row" style="margin-bottom:12px">
           <select class="inp" id="fMonth" style="max-width:180px"></select>
           <select class="inp" id="fCat" style="max-width:150px"></select>
+          <input class="inp" id="fKw" placeholder="搜备注/商户" style="max-width:200px">
+          <input class="inp" id="fMin" type="number" inputmode="decimal" placeholder="最小" style="max-width:88px">
+          <input class="inp" id="fMax" type="number" inputmode="decimal" placeholder="最大" style="max-width:88px">
         </div>
         <div class="list" id="allRec"></div>
       </div>
@@ -658,6 +662,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml;charset=utf8
       <div class="row">
         <button class="btn" id="btnExport2"></button>
         <button class="btn" id="btnImport2"></button>
+        <button class="btn" id="btnMerge2"></button>
         <button class="btn" id="btnCsv2"></button>
         <button class="btn warn" id="btnClearDemo">清空示例数据</button>
         <button class="btn warn" id="btnClearAll">清空全部数据</button>
@@ -927,23 +932,38 @@ function migrate(o){
   if(o.settings.inflation===undefined) o.settings.inflation = 2.5;
   o.challenges = Array.isArray(o.challenges) ? o.challenges : [];
   o.fixed = Array.isArray(o.fixed) ? o.fixed : [];
+  o.records = Array.isArray(o.records) ? o.records : [];
+  o.savings = Array.isArray(o.savings) ? o.savings : [];
   if(o.payday===undefined || o.payday<1 || o.payday>28) o.payday = 10;
   o.records.forEach(function(r){ if(!r.bucket) r.bucket = r.type==='income' ? '储蓄' : '必要'; if(r.account===undefined) r.account=''; if(r.sub===undefined) r.sub=''; });
   o.fixed.forEach(function(f){ if(!f.frequency) f.frequency='monthly'; if(f.bucket===undefined) f.bucket='必要'; if(!Array.isArray(f.paid)) f.paid=[]; });
   return o;
 }
+var _saveTimer = null;
 function save(s){
   S = s||S;
   var json = JSON.stringify(S);
+  if(_saveTimer) clearTimeout(_saveTimer);
   if(window.__TAURI__ && window.__TAURI__.core){
-    // Tauri：写应用目录下的 ledger.json（异步，不阻塞 UI）
-    window.__TAURI__.core.invoke('ledger-save', { json: json }).catch(function(){});
+    // Tauri：写应用目录下的 ledger.json（异步，不阻塞 UI）；防抖避免每次击键全量写盘
+    _saveTimer = setTimeout(function(){ window.__TAURI__.core.invoke('ledger-save', { json: json }).catch(function(){}); }, 300);
     return Promise.resolve();
   }
-  try{ localStorage.setItem(KEY, json); }
-  catch(e){ toast('保存失败：本地空间可能已满'); }
+  _saveTimer = setTimeout(function(){
+    try{ localStorage.setItem(KEY, json); }
+    catch(e){ toast('保存失败：本地空间可能已满'); }
+  }, 300);
   return Promise.resolve();
 }
+function flushSave(){
+  if(!_saveTimer) return;
+  clearTimeout(_saveTimer); _saveTimer = null;
+  var json = JSON.stringify(S);
+  if(window.__TAURI__ && window.__TAURI__.core){ window.__TAURI__.core.invoke('ledger-save', { json: json }).catch(function(){}); }
+  else { try{ localStorage.setItem(KEY, json); }catch(e){} }
+}
+window.addEventListener('pagehide', flushSave);
+window.addEventListener('visibilitychange', function(){ if(document.hidden) flushSave(); });
 
 /* ---------- 计算核心 ---------- */
 function calc(p){
@@ -1053,6 +1073,7 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove('on'); },2200);
 }
 var confirmCb = null;
+var importMode = false;
 function ask(title, text, cb){
   $('mkT').textContent=title; $('mkP').textContent=text; confirmCb=cb; $('mask').classList.add('on');
 }
@@ -1260,7 +1281,9 @@ function drawBudget(){
   var html='';
   if(b.total>0){
     var rt = bs.total/b.total;
+    var left = b.total - bs.total;
     html += '<div class="budRow'+(rt>1?' over':'')+'"><span class="nm">总预算</span><div class="bar"><i style="width:'+Math.min(100,rt*100)+'%"></i></div><span class="vl">'+money(bs.total)+' / '+money(b.total)+(rt>1?' ⚠':'')+'</span></div>';
+    html += '<div style="font-size:13px;color:var(--sub);margin:2px 0 8px">本月还可花 <b style="color:'+(left>=0?'var(--green)':'var(--red)')+'">'+money(left)+'</b>'+(rt>1?' · 已超支 '+money(-left):'')+'</div>';
   }
   Object.keys(b.cats||{}).forEach(function(k){
     var lim=b.cats[k], cur=bs.byCat[k]||0, rt=lim>0?cur/lim:0;
@@ -1325,8 +1348,15 @@ function renderAdd(){
     .map(function(c){ return '<option'+(c===curC?' selected':'')+'>'+c+'</option>'; }).join('');
 
   var fm=$('fMonth').value, fc=$('fCat').value;
+  var kw=($('fKw').value||'').trim().toLowerCase();
+  var mn=num($('fMin').value,0), mx=num($('fMax').value,0);
   var list = S.records.filter(function(r){
-    return (!fm || r.date.slice(0,7)===fm) && (!fc || r.cat===fc);
+    if(fm && r.date.slice(0,7)!==fm) return false;
+    if(fc && r.cat!==fc) return false;
+    if(kw && ((r.note||'')+' '+(r.cat||'')).toLowerCase().indexOf(kw)<0) return false;
+    if(mn>0 && r.amount<mn) return false;
+    if(mx>0 && r.amount>mx) return false;
+    return true;
   }).sort(function(a,b){ return a.date<b.date?1:a.date>b.date?-1:0; });
   $('recCount').textContent = list.length + ' 笔';
   $('allRec').innerHTML = list.length ? list.map(function(r){return recItem(r,true);}).join('') : '<div class="empty">这个筛选下还没有记录</div>';
@@ -1562,21 +1592,32 @@ function dl(blob, name){
   a.href=u; a.download=name; document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },400);
 }
-function importJSON(file){
+function importJSON(file, merge){
   var fr = new FileReader();
   fr.onload = function(){
     try{
       var o = JSON.parse(fr.result);
       if(!o || !o.profile || !Array.isArray(o.records)) throw 0;
-      o.fixed = o.fixed||[]; o.savings = o.savings||[];
-      o.fund = o.fund || {target:100000,current:0,cost:6000,cushion:6};
       o = migrate(o);
-      S = o; save();
-      toast('导入成功，共 '+o.records.length+' 笔流水');
+      if(merge){
+        mergeInto(S, o);
+        save();
+        toast('已合并导入（仅新增不重复记录）');
+      } else {
+        S = o; save();
+        toast('导入成功，共 '+o.records.length+' 笔流水');
+      }
       fillWage(); render();
     }catch(e){ toast('这个文件读不了，确认是本工作台导出的 JSON'); }
   };
   fr.readAsText(file);
+}
+function mergeInto(base, inc){
+  function m(key){ var ex=base[key]||[], seen={}; ex.forEach(function(x){ if(x&&x.id) seen[x.id]=1; }); (inc[key]||[]).forEach(function(x){ if(x&&x.id&&!seen[x.id]) ex.push(x); }); base[key]=ex; }
+  m('records'); m('fixed'); m('accounts'); m('recurring'); m('savings'); m('challenges');
+  if(!base.fund) base.fund = inc.fund;
+  if(!base.budgets || !base.budgets.total) base.budgets = inc.budgets;
+  if(!base.settings || base.settings.inflation===undefined) base.settings = inc.settings;
 }
 function renderData(){
   var n = S.records.length, d = S.records.filter(function(r){return r.demo;}).length;
@@ -1610,17 +1651,30 @@ function renderAccount(){
     b.onclick=function(){ ask('删除这个账户？','余额会同步从净资产里扣除。', function(){ S.accounts=S.accounts.filter(function(x){return x.id!==b.dataset.delac;}); save(); renderAccount(); }); };
   });
   $('recList').innerHTML = S.recurring.length ? S.recurring.map(function(r){
-    return '<div class="recRow"><div class="tx"><div class="t1">'+esc(r.name)+(r.demo?' <span class="tag demo">示例</span>':'')+'</div><div class="t2">每月 '+r.day+' 号 · '+(r.type==='income'?'收入':'支出')+' '+(esc(r.cat||''))+'</div></div>'
+    var nd = nextRecurDate(r);
+    var tag = r.skip ? ' <span class="tag warn">已暂停</span>' : '';
+    return '<div class="recRow"><div class="tx"><div class="t1">'+esc(r.name)+(r.demo?' <span class="tag demo">示例</span>':'')+tag+'</div><div class="t2">每月 '+r.day+' 号 · '+(r.type==='income'?'收入':'支出')+' '+(esc(r.cat||''))+' · 下次约 '+(nd.getMonth()+1)+'月'+nd.getDate()+'日</div></div>'
       + '<div class="am" style="color:'+(r.type==='income'?'var(--green)':'var(--red)')+'">'+money(r.amount)+'</div>'
+      + '<button data-togrc="'+r.id+'" style="border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;margin-right:6px">'+(r.skip?'恢复':'暂停')+'</button>'
       + '<button class="iconbtn" data-delrc="'+r.id+'">'+svgIcon('trash')+'</button></div>';
   }).join('') : '<div class="empty">还没有周期记账规则</div>';
+  $('recList').querySelectorAll('[data-togrc]').forEach(function(b){
+    b.onclick=function(){ var r=S.recurring.find(function(x){return x.id===b.dataset.togrc;}); if(r){ r.skip=!r.skip; save(); renderAccount(); } };
+  });
   $('recList').querySelectorAll('[data-delrc]').forEach(function(b){
     b.onclick=function(){ ask('删除这条周期规则？','之后不再自动生成。', function(){ S.recurring=S.recurring.filter(function(x){return x.id!==b.dataset.delrc;}); save(); renderAccount(); }); };
   });
 }
+function nextRecurDate(r){
+  var day = Math.max(1, Math.min(28, r.day||1));
+  var d = new Date(); d.setDate(day);
+  if(d.getTime() < Date.now()) d.setMonth(d.getMonth()+1);
+  return d;
+}
 function genRecurring(){
   var m = ym(new Date());
   S.recurring.forEach(function(r){
+    if(r.skip) return;
     if(S.records.some(function(x){ return x._rec===r.id && x.date.slice(0,7)===m; })) return;
     var day = Math.max(1, Math.min(28, r.day||1));
     var d = new Date(); d.setDate(day);
@@ -1875,6 +1929,7 @@ function downloadTemplate(){
 
 /* ---- 语音记账 ---- */
 function startVoice(){
+  if(window.__TAURI__){ toast('语音记账是浏览器专属能力，桌面版暂不支持'); return; }
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ toast('当前浏览器不支持语音记账'); return; }
   if(window.__rec&&window.__recing){ try{window.__rec.stop();}catch(e){} return; }
@@ -1918,6 +1973,7 @@ function render(){
 /* ---------- 事件绑定 ---------- */
 function init(){
   genRecurring();
+  if(window.__TAURI__){ var _mic=$('aMic'); if(_mic) _mic.style.display='none'; }
   $('logo1').innerHTML = LOGO; $('logo2').innerHTML = LOGO;
   buildNav(); paintIcons(document);
 
@@ -1925,12 +1981,16 @@ function init(){
     $(id).innerHTML = svgIcon('down')+'<span>导出 JSON</span>'; $(id).onclick = exportJSON;
   });
   ['btnImport','btnImport2'].forEach(function(id){
-    $(id).innerHTML = svgIcon('up')+'<span>导入恢复</span>'; $(id).onclick = function(){ $('fileIn').click(); };
+    $(id).innerHTML = svgIcon('up')+'<span>导入恢复</span>'; $(id).onclick = function(){ importMode=false; $('fileIn').click(); };
+  });
+  ['btnMerge','btnMerge2'].forEach(function(id){
+    if(!$(id)) return;
+    $(id).innerHTML = svgIcon('split')+'<span>合并导入</span>'; $(id).onclick = function(){ importMode=true; $('fileIn').click(); };
   });
   ['btnCsv','btnCsv2'].forEach(function(id){
     $(id).innerHTML = svgIcon('sheet')+'<span>导出 CSV</span>'; $(id).onclick = exportCSV;
   });
-  $('fileIn').onchange = function(){ if(this.files[0]) importJSON(this.files[0]); this.value=''; };
+  $('fileIn').onchange = function(){ if(this.files[0]) importJSON(this.files[0], importMode); this.value=''; };
 
   $('btnClearDemo').onclick = function(){
     var n = S.records.filter(function(r){return r.demo;}).length
@@ -1962,6 +2022,7 @@ function init(){
   $('tIncome').onclick  = function(){ editType='income';  editBucket='储蓄'; renderAdd(); };
   $('aAmt').oninput = updConv;
   $('fMonth').onchange = renderAdd; $('fCat').onchange = renderAdd;
+  $('fKw').oninput = renderAdd; $('fMin').oninput = renderAdd; $('fMax').oninput = renderAdd;
   $('btnSave').onclick = function(){
     var a = num($('aAmt').value,0);
     if(a<=0){ toast('先填个金额吧'); $('aAmt').focus(); return; }
@@ -2060,7 +2121,19 @@ function init(){
 
   go('home');
 }
-async function boot(){ S = await load(); init(); }
+function autoBackup(){
+  if(!(window.__TAURI__ && window.__TAURI__.core)) return;
+  var today = ymd(new Date());
+  if(S.settings && S.settings.lastBackup===today) return;
+  try{
+    var name = 'backup-'+today+'.json';
+    window.__TAURI__.core.invoke('ledger-export', { name: name, content: JSON.stringify(S) }).catch(function(){});
+    if(!S.settings) S.settings = {};
+    S.settings.lastBackup = today;
+    window.__TAURI__.core.invoke('ledger-save', { json: JSON.stringify(S) }).catch(function(){});
+  }catch(e){}
+}
+async function boot(){ S = await load(); autoBackup(); init(); }
 boot();
 </script>
 <script>

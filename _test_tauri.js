@@ -48,15 +48,16 @@ const wait = (dom, ms) => new Promise(r => setTimeout(() => { dom.window.__done 
   const captured = [];
   const domB = makeDom(w => {
     w.scrollTo = () => {};
-    w.__TAURI__ = { core: { invoke: (cmd, args) => { captured.push({ cmd, args }); if (cmd === 'ledger_load') return Promise.resolve(cannedStr); if (cmd === 'ledger_save') return Promise.resolve(true); if (cmd === 'ledger_export') return Promise.resolve('/fake/exports/x.json'); return Promise.resolve(null); } } };
+    w.__TAURI__ = { core: { invoke: (cmd, args) => { captured.push({ cmd, args }); if (cmd === 'ledger-load') return Promise.resolve(cannedStr); if (cmd === 'ledger-save') return Promise.resolve(true); if (cmd === 'ledger-export') return Promise.resolve('/fake/exports/x.json'); return Promise.resolve(null); } } };
   });
   await wait(domB, 400);
   const wB = domB.window;
-  ok(captured.some(c => c.cmd === 'ledger_load'), 'load() invoked ledger_load command');
+  ok(captured.some(c => c.cmd === 'ledger-load'), 'load() invoked ledger-load command');
   ok(wB.S && wB.S.bridgeMarker === 'TAURI-LOAD', 'load() used invoke result (not a re-seed)');
   ok(wB.S.records.length === seed.records.length, 'load() kept the invoke record count (' + wB.S.records.length + ')');
   wB.save(wB.S);
-  ok(captured.some(c => c.cmd === 'ledger_save' && typeof c.args.json === 'string'), 'save() invoked ledger_save command with json');
+  await wait(domB, 400);
+  ok(captured.some(c => c.cmd === 'ledger-save' && typeof c.args.json === 'string'), 'save() invoked ledger-save command with json');
   ok(wB.localStorage.getItem('wb_worker_ledger_v1') === null, 'no localStorage write in Tauri mode (uses file commands)');
 
   console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
