@@ -172,6 +172,47 @@ const wait = (dom, ms) => new Promise(r => setTimeout(() => r(), ms));
   const rb = w.document.getElementById('repayBanner');
   ok(rb && /还款日/.test(rb.innerHTML), 'repay banner shows when card due within 5 days');
 
+  // 15) 今日额度：有预算显示金额，无预算显示 —
+  w.S.budgets = { total: 3000, cats: {} };
+  w.renderHome();
+  let ta = w.document.getElementById('todayAmt');
+  ok(ta && /¥/.test(ta.textContent), 'today quota shows amount when budget set (got ' + (ta ? ta.textContent : '') + ')');
+  w.S.budgets = { total: 0, cats: {} };
+  w.renderHome();
+  ok(w.document.getElementById('todayAmt').textContent === '—', 'today quota shows — when no budget');
+
+  // 16) 心情字段：emoji 在流水里渲染
+  w.S.records.push({ id:'mood1', date: w.ymd(new Date()), type:'expense', amount:20, cat:'咖啡', note:'', bucket:'想要', account:'', sub:'', mood:'😌' });
+  w.renderAdd();
+  ok(/😌/.test(w.document.getElementById('allRec').innerHTML), 'mood emoji renders in record list');
+
+  // 17) 多笔录入：按行拆分并猜分类
+  const mp = w.parseMulti('午饭 35 地铁 6\n咖啡 18');
+  ok(mp.length === 3, 'parseMulti splits 3 lines (got ' + mp.length + ')');
+  ok(mp[0].cat === '吃饭', 'parseMulti guesses 午饭->吃饭');
+  ok(mp[1].cat === '交通', 'parseMulti guesses 地铁->交通');
+  ok(mp.every(x => x.amount > 0 && x.type === 'expense'), 'parseMulti items are expense with amount');
+  const mp2 = w.parseMulti('35');
+  ok(mp2.length === 1 && mp2[0].cat === '其他', 'parseMulti amount-only -> 其他');
+
+  // 18) 勋章墙：连续天数点亮对应层级
+  w.S.records = [];
+  const todayBase = new w.Date();
+  for (let d = 0; d < 7; d++) { const dt = new w.Date(todayBase.getTime() - d * 86400000); w.S.records.push({ id:'md' + d, date: w.ymd(dt), type:'expense', amount:10, cat:'其他', bucket:'想要', account:'', sub:'', mood:'' }); }
+  w.renderHome();
+  const mb = w.document.getElementById('medalBox');
+  ok(mb && mb.querySelectorAll('.medal.on').length >= 2, 'medals: 7-day streak lights >=2 tiers (got ' + (mb ? mb.querySelectorAll('.medal.on').length : 0) + ')');
+
+  // 19) 快速记账弹窗：打开 / 保存 / 关闭
+  const beforeQ = w.S.records.length;
+  w.openQuickAdd();
+  ok(w.document.getElementById('qaMask').classList.contains('on'), 'quick-add modal opens');
+  w.document.getElementById('qaAmt').value = '42';
+  w.document.getElementById('qaSave').click();
+  ok(w.S.records.length === beforeQ + 1, 'quick-add saves one record');
+  ok(!w.document.getElementById('qaMask').classList.contains('on'), 'quick-add modal closes after save');
+  ok(w.S.records[w.S.records.length - 1].amount === 42, 'quick-add record amount = 42');
+
   console.log('\nRESULT: ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail === 0 ? 0 : 1);
 })().catch(e => { console.error('TEST CRASH', e); process.exit(2); });

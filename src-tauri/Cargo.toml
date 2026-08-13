@@ -1,6 +1,6 @@
 [package]
 name = "worker-ledger"
-version = "1.0.3"
+version = "1.1.0"
 description = "打工人小账本 - 离线个人财务工作台"
 edition = "2021"
 rust-version = "1.70"
@@ -9,6 +9,7 @@ rust-version = "1.70"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

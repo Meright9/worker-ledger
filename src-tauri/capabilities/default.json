@@ -8,6 +8,7 @@
     "core:event:default",
     "allow-ledger-load",
     "allow-ledger-save",
-    "allow-ledger-export"
+    "allow-ledger-export",
+    "global-shortcut:default"
   ]
 }

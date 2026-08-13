@@ -3,6 +3,8 @@
 use std::fs;
 use std::io::Write;
 use tauri::Manager;
+use tauri::menu::{Menu, MenuItemBuilder};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 
 /// 过滤文件名中的非法字符，防止路径穿越
 fn sanitize(name: &str) -> String {
@@ -60,11 +62,48 @@ fn ledger_export(app: tauri::AppHandle, name: String, content: String) -> String
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             ledger_load,
             ledger_save,
             ledger_export
         ])
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                // 托盘图标：复用应用默认图标，无需额外资源
+                if let Some(icon) = app.default_window_icon().cloned() {
+                    let show_i = MenuItemBuilder::with_id("show", "打开账本", true, None::<&str>).build(app)?;
+                    let quit_i = MenuItemBuilder::with_id("quit", "退出", true, None::<&str>).build(app)?;
+                    let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+                    let _tray = TrayIconBuilder::with_id("main-tray")
+                        .icon(icon)
+                        .tooltip("打工人小账本")
+                        .menu(&menu)
+                        .on_menu_event(|app, event| match event.id.as_ref() {
+                            "show" => { if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); } }
+                            "quit" => app.exit(0),
+                            _ => {}
+                        })
+                        .on_click(|app, _tray, _event| {
+                            if let Some(w) = app.get_webview_window("main") { let _ = w.show(); let _ = w.set_focus(); }
+                        })
+                        .build(app)?;
+                }
+
+                // 全局快捷键：Cmd/Ctrl + Shift + K 唤起快速记账
+                if let Ok(sc) = tauri_plugin_global_shortcut::Shortcut::from_str("CmdOrCtrl+Shift+K") {
+                    let _ = app.global_shortcut().on_shortcut(sc, |app, _sc| {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                            let _ = w.emit("quick-add", ());
+                        }
+                    });
+                }
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
