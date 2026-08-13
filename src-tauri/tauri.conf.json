@@ -4,10 +4,10 @@
   "version": "1.1.0",
   "identifier": "com.worker.ledger",
   "build": {
-    "frontendDist": "../frontend",
+    "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "echo noop",
-    "beforeBuildCommand": "echo noop"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
     "withGlobalTauri": true,

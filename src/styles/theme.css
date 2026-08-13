@@ -1,0 +1,49 @@
+:root{
+  /* —— 宏大自然风光调色板 —— */
+  --cream:#FBF6EE; --cream2:#EFF4F0; --card:#FFFDF9;
+  --mint:#9CC2A6; --mint-d:#5E8C72; --mint-l:#EAF3EC; --mint-b:#CFE3D4;
+  --pink:#E0A98C; --pink-d:#C07E5E; --pink-l:#F5E7DC;
+  --ink:#3F4A43; --sub:#8E948A; --line:#E4E6DD;
+  --red:#D9746B; --red-l:#F6E2DE; --green:#7BAE84; --green-l:#E2EDE4;
+  --amber:#E0A24A; --amber-l:#FBF1DC;
+  --sky:#AFC9DA; --sky-d:#6E97AE; --sky-l:#E8F1F6;
+  --sun:#F3D58A; --sun-l:#FBF1D8;
+  --ocean:#9FC4CE; --ocean-d:#5E8FA0; --foam:#F4F8F9; --sand:#E7D8BE;
+  --r:20px; --r-lg:26px;
+  --shadow:0 10px 30px -18px rgba(140,150,130,.42), 0 2px 0 rgba(210,215,200,.5);
+  --shadow-soft:0 6px 18px -12px rgba(140,150,130,.4);
+  --font:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑","Yuanti SC",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:linear-gradient(180deg,var(--sky-l) 0%, var(--cream2) 34%, var(--cream) 62%);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:15px; line-height:1.6; -webkit-text-size-adjust:100%;
+  overflow-x:hidden;
+}
+button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit}
+button{cursor:pointer;border:none;background:none}
+svg{display:block}
+#root{position:relative;z-index:1}
+.app{max-width:1100px;margin:0 auto;padding:18px 16px 96px}
+
+/* ---------- 宏大自然风光：固定风景层 ---------- */
+.scenery{position:fixed;inset:0;z-index:-2;pointer-events:none;overflow:hidden}
+.scenery svg{position:absolute;bottom:0;left:0;width:100%;height:62%;min-height:340px}
+.cloud{animation:drift 60s linear infinite}
+.cloud.b{animation-duration:88s;animation-direction:reverse}
+@keyframes drift{from{transform:translateX(-3%)}to{transform:translateX(3%)}}
+@media (prefers-reduced-motion:reduce){ .cloud{animation:none} }
+
+/* ---------- 基础卡片 / 导航（阶段 5 细化，此处占位骨架） ---------- */
+.card{background:var(--card);border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px}
+.hero h2{margin:0 0 6px;font-size:20px}
+.hero p{margin:0;color:var(--sub)}
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:4px;justify-content:center;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(255,253,249,.86);backdrop-filter:blur(8px);
+  border-top:1px solid var(--line)}
+.navbtn{padding:8px 18px;border-radius:16px;color:var(--sub);font-size:14px}
+.navbtn.on{background:var(--mint-l);color:var(--mint-d);font-weight:600}
