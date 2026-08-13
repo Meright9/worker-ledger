@@ -100,7 +100,7 @@ fn main() {
 
                 // 全局快捷键：Cmd/Ctrl + Shift + K 唤起快速记账
                 if let Ok(sc) = tauri_plugin_global_shortcut::Shortcut::from_str("CmdOrCtrl+Shift+K") {
-                    let _ = app.global_shortcut().on_shortcut(sc, |app, _sc| {
+                    let _ = app.global_shortcut().on_shortcut(sc, |app, _sc, _event| {
                         if let Some(w) = app.get_webview_window("main") {
                             let _ = w.show();
                             let _ = w.set_focus();
