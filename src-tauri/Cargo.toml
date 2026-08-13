@@ -1,6 +1,6 @@
 [package]
 name = "worker-ledger"
-version = "1.0.0"
+version = "1.0.1"
 description = "打工人小账本 - 离线个人财务工作台"
 edition = "2021"
 rust-version = "1.70"
