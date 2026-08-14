@@ -4,3 +4,6 @@ src-tauri/target/
 src-tauri/icons/
 frontend/icon.png
 .DS_Store
+vite.config.ts.timestamp-*
+_scanbroken.mjs
+_broken.txt
