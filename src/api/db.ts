@@ -54,7 +54,7 @@ function write(s: Store) {
   localStorage.setItem(KEY, JSON.stringify(s))
 }
 
-const localDb: Db = {
+export const localDb: Db = {
   async init() {
     if (!localStorage.getItem(KEY)) {
       write({ records: [], accounts: [], meta: { version: '2' }, seq: 0 })
@@ -104,7 +104,7 @@ const localDb: Db = {
 }
 
 // ---------- Tauri 实现（走 Rust 命令，命令在阶段 2 落地） ----------
-const tauriDb: Db = {
+export const tauriDb: Db = {
   init: () => invoke('db_init') as Promise<void>,
   recordList: (range) => invoke<Rec[]>('record_list', { range: range ?? null }),
   recordInsert: (p) => invoke<number>('record_insert', { p }),

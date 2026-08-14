@@ -1,0 +1,102 @@
+/* ---------- 通用 ---------- */
+.page{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 0}
+.section-title h3{margin:0;font-size:15px;color:var(--sub);font-weight:600;letter-spacing:.04em}
+.empty{color:var(--sub);font-size:14px;padding:10px 2px;line-height:1.7}
+.muted{color:var(--sub);font-size:13px}
+.link{color:var(--mint-d);background:none;border:none;padding:0;font-size:inherit;text-decoration:underline;cursor:pointer}
+
+/* ---------- 今日额度大卡 ---------- */
+.hero{background:linear-gradient(160deg,var(--mint-l),var(--card));border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:20px}
+.hero .hlabel{color:var(--mint-d);font-size:13px;font-weight:600;letter-spacing:.06em}
+.heroAmt{font-size:40px;font-weight:800;line-height:1.15;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.heroAmt.mint{color:var(--mint-d)} .heroAmt.red{color:var(--red)}
+.heroSub{color:var(--sub);font-size:13.5px;line-height:1.65}
+.hero .hint{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--sub)}
+
+/* ---------- 勋章墙 ---------- */
+.medals{display:flex;flex-wrap:wrap;gap:10px}
+.medal{flex:1 1 28%;min-width:84px;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:12px 8px;text-align:center;opacity:.62;filter:grayscale(.5)}
+.medal.on{opacity:1;filter:none;background:var(--sun-l);border-color:var(--sun)}
+.medal .me{font-size:26px;line-height:1.1}
+.medal .mt{font-weight:700;font-size:13px;margin-top:4px}
+.medal .md{font-size:11px;color:var(--sub)}
+.medalHint{margin-top:10px;font-size:13px;color:var(--ink)}
+
+/* ---------- 回忆卡 ---------- */
+.memCard{background:linear-gradient(160deg,var(--sky-l),var(--card));border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:18px}
+.memCard .lines{line-height:1.85;font-size:14.5px}
+.memCard b{color:var(--mint-d)}
+
+/* ---------- KPI ---------- */
+.kpiRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpi{background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:12px 8px;text-align:center}
+.kpi .kv{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+.kpi .kv.neg{color:var(--red)} .kpi .kv.pos{color:var(--green)}
+.kpi .kl{font-size:11px;color:var(--sub);margin-top:2px}
+
+/* ---------- 图表 ---------- */
+.bars{display:flex;flex-direction:column;gap:10px}
+.barRow{display:grid;grid-template-columns:54px 1fr 92px;align-items:center;gap:8px;font-size:13px}
+.barRow .nm{color:var(--ink)}
+.barRow .track{height:12px;background:var(--cream2);border-radius:8px;overflow:hidden}
+.barRow .fill{height:100%;border-radius:8px;transition:width .4s ease}
+.barRow .vl{text-align:right;color:var(--sub);font-variant-numeric:tabular-nums}
+.spark{width:100%;height:96px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:middle}
+
+/* ---------- 表单 ---------- */
+.form{display:flex;flex-direction:column;gap:14px}
+.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:10px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--sub);font-weight:600}
+.seg button.on{background:var(--mint-l);border-color:var(--mint);color:var(--mint-d)}
+.seg button.on.income{background:var(--sky-l);border-color:var(--sky);color:var(--sky-d)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 13px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-size:14px}
+.chip.on{background:var(--mint-l);border-color:var(--mint);color:var(--mint-d);font-weight:700}
+.chip.on.income{background:var(--sky-l);border-color:var(--sky);color:var(--sky-d)}
+.input,textarea.input,select.input{width:100%;padding:11px 13px;border-radius:14px;border:2px solid var(--line);background:var(--card);outline:none}
+.input:focus{border-color:var(--mint)}
+textarea.input{min-height:64px;resize:vertical}
+.amountBig{font-size:30px;font-weight:800;text-align:center;letter-spacing:.02em}
+.multiPreview{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.multiItem{display:flex;justify-content:space-between;align-items:center;background:var(--cream2);border-radius:12px;padding:8px 12px;font-size:13.5px}
+.multiItem .am{color:var(--red);font-weight:700}
+
+/* ---------- 按钮 ---------- */
+.btn{padding:12px 18px;border-radius:16px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-weight:700}
+.btn.primary{background:var(--mint-d);border-color:var(--mint-d);color:#fff}
+.btn.primary:active{transform:translateY(1px)}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;color:var(--sub)}
+.row{display:flex;gap:10px}
+.row > *{flex:1}
+
+/* ---------- 模态 ---------- */
+.mask{position:fixed;inset:0;z-index:20;background:rgba(60,68,62,.42);display:flex;align-items:flex-end;justify-content:center;padding:0}
+.mask.on{animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{width:100%;max-width:560px;background:var(--card);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:var(--shadow);padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto}
+.modal h3{margin:0 0 14px}
+
+/* ---------- Toast ---------- */
+.toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:30;background:var(--ink);color:#fff;padding:10px 18px;border-radius:14px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:.96}
+
+/* ---------- 列表 ---------- */
+.recList{display:flex;flex-direction:column;gap:8px}
+.recItem{display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:11px 13px}
+.recItem .ic{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:17px;background:var(--mint-l)}
+.recItem .ic.income{background:var(--sky-l)}
+.recItem .tx{flex:1;min-width:0}
+.recItem .t1{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recItem .t2{font-size:12px;color:var(--sub)}
+.recItem .am{font-weight:800;font-variant-numeric:tabular-nums}
+.recItem .am.exp{color:var(--red)} .recItem .am.inc{color:var(--green)}
+.recItem .del{color:var(--sub);background:none;border:none;font-size:18px;padding:4px 8px}
+
+/* ---------- Me / 设置 ---------- */
+.setRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line)}
+.setRow:last-child{border-bottom:none}

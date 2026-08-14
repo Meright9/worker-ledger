@@ -9,6 +9,38 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    name: 测试（Vitest + tsc + cargo test）
+    runs-on: windows-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 安装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: 安装前端依赖
+        run: npm install
+
+      - name: 前端单元测试
+        run: npx vitest run
+
+      - name: 前端类型检查
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Rust 数据层单元测试
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
   build:
     strategy:
       fail-fast: false
